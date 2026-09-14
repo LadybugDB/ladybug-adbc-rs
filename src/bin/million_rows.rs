@@ -272,9 +272,9 @@ async fn main() -> anyhow::Result<()> {
         rest_est / adbc_best
     );
     println!(
-        "NOTE: this server re-executes the query per RPC (GetFlightInfo + DoGet), \
-         so the ADBC round trip embeds ~2x query cost; the codec rows above are \
-         the pure transport-format comparison."
+        "NOTE: GetFlightInfo resolves schema via prepare (no execution); a round \
+         trip executes the query once, in DoGet. The codec rows above are the \
+         pure transport-format comparison."
     );
     Ok(())
 }

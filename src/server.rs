@@ -125,6 +125,24 @@ impl LadybugFlightServer {
         .map_err(|e| e.to_string())?
     }
 
+    /// Schema for FlightInfo without executing the query (parse + bind + plan).
+    /// Falls back to `None` when preparation fails or yields no columns, so
+    /// callers can execute instead (preserves DDL/status-table behaviour).
+    async fn prepare_schema(&self, cypher: &str) -> Option<SchemaRef> {
+        let cypher = cypher.trim().to_string();
+        if cypher.is_empty() {
+            return None;
+        }
+        let db = Arc::clone(&self.db);
+        tokio::task::spawn_blocking(move || {
+            let conn = lbug::Connection::new(&db).ok()?;
+            crate::prepare_arrow_schema(&conn, &cypher).ok()
+        })
+        .await
+        .ok()?
+        .filter(|s| !s.fields().is_empty())
+    }
+
     fn store(&self, query: String) -> Vec<u8> {
         let handle = uuid::Uuid::new_v4().simple().to_string().into_bytes();
         let key = String::from_utf8_lossy(&handle).into_owned();
@@ -273,6 +291,16 @@ impl FlightService for LadybugFlightServer {
     ) -> Result<Response<FlightInfo>, Status> {
         let descriptor = request.into_inner();
         let (cypher, handle) = self.resolve_descriptor_query(&descriptor)?;
+        // Schema only: preparing is parse + bind + plan, no execution, so a
+        // round trip executes the query exactly once (in DoGet). Totals are
+        // unknown until then. Fall back to a full execute for statements
+        // with no result columns (e.g. DDL, reported as a status table).
+        if let Some(schema) = self.prepare_schema(&cypher).await {
+            let handle = handle.unwrap_or_else(|| self.store(cypher));
+            let info =
+                self.flight_info_for(&schema, -1, -1, &handle, Some(descriptor))?;
+            return Ok(Response::new(info));
+        }
         let (schema, batches) = self.execute(&cypher).await.map_err(bad_query)?;
         let (rows, _, bytes) = crate::table_stats(&schema, &batches);
         let handle = handle.unwrap_or_else(|| self.store(cypher));
@@ -299,6 +327,11 @@ impl FlightService for LadybugFlightServer {
     ) -> Result<Response<SchemaResult>, Status> {
         let descriptor = request.into_inner();
         let (cypher, _handle) = self.resolve_descriptor_query(&descriptor)?;
+        if let Some(schema) = self.prepare_schema(&cypher).await {
+            return Ok(Response::new(SchemaResult {
+                schema: self.schema_ipc(&schema)?.into(),
+            }));
+        }
         let (schema, _batches) = self.execute(&cypher).await.map_err(bad_query)?;
         Ok(Response::new(SchemaResult {
             schema: self.schema_ipc(&schema)?.into(),
@@ -338,7 +371,15 @@ impl FlightService for LadybugFlightServer {
                 if query.trim().is_empty() {
                     return Err(Status::invalid_argument("empty query"));
                 }
-                let (schema, _batches) = self.execute(&query).await.map_err(bad_query)?;
+                let schema = match self.prepare_schema(&query).await {
+                    Some(s) => s,
+                    None => {
+                        self.execute(&query)
+                            .await
+                            .map_err(bad_query)?
+                            .0
+                    }
+                };
                 let dataset_schema = self.schema_ipc(&schema)?;
                 let handle = self.store(query);
                 let body = encode_create_prepared_statement_result(&handle, &dataset_schema);

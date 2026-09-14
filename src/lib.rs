@@ -164,6 +164,28 @@ pub fn execute_cypher(
     Ok((schema, batches))
 }
 
+/// Prepare a query and return its Arrow result schema without executing it.
+///
+/// Backed by `lbug::PreparedStatement::get_arrow_schema` (parse + bind + plan
+/// only), so this stays cheap even for expensive queries. Returns an error if
+/// preparation fails.
+pub fn prepare_arrow_schema(conn: &lbug::Connection, cypher: &str) -> anyhow::Result<SchemaRef> {
+    let cypher = cypher.trim();
+    if cypher.is_empty() {
+        anyhow::bail!("empty query");
+    }
+    let stmt = conn
+        .prepare(cypher)
+        .map_err(|e| anyhow::anyhow!("ladybug prepare failed: {e}"))?;
+    let ffi_schema = stmt
+        .get_arrow_schema()
+        .map_err(|e| anyhow::anyhow!("ladybug schema failed: {e}"))?;
+    Ok(Arc::new(
+        Schema::try_from(&ffi_schema)
+            .map_err(|e| anyhow::anyhow!("arrow schema import failed: {e}"))?,
+    ))
+}
+
 fn status_table() -> (SchemaRef, Vec<RecordBatch>) {
     let schema: SchemaRef = Arc::new(Schema::new(vec![Field::new(
         "status",
