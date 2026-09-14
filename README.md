@@ -81,15 +81,15 @@ Measured (release, separate server process, 1M rows × 3 cols):
 
 | leg | secs | rows/s | MiB | MiB/s |
 |---|---|---|---|---|
-| ADBC round trip | 3.23 | ~310k | 25.2 | 7.8 |
-| JSON codec (convert+ser+parse) | 0.69 | ~1.45M | 40.7 | 59 |
-| Arrow IPC codec (enc+dec) | 0.011 | ~87M | 25.2 | ~2200 |
+| ADBC round trip | 2.18 | ~460k | 25.2 | 11.6 |
+| JSON codec (convert+ser+parse) | 0.75 | ~1.34M | 40.7 | 54.5 |
+| Arrow IPC codec (enc+dec) | 0.010 | ~101M | 25.2 | ~2560 |
 
 Takeaways: JSON wire payload is **1.6x** the Arrow IPC payload, and row-JSON
-ser/parse is **~60x** the Arrow IPC encode/decode on identical data. Caveat:
-this server re-executes the query per RPC (`GetFlightInfo` + `DoGet`), so the
-ADBC round trip embeds ~2x query cost — the codec rows are the pure
-transport-format comparison.
+ser/parse is **~75x** the Arrow IPC encode/decode on identical data.
+`GetFlightInfo` resolves schema via prepare (no execution), so a round trip
+executes the query exactly once, in `DoGet` — the ADBC number above is ~1s
+faster than the old double-execution design (was 3.23s).
 
 ## SQL vs Cypher
 
