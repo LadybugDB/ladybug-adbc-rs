@@ -1,0 +1,46 @@
+[package]
+name = "ladybug-adbc"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+description = "Arrow Flight / ADBC columnar interface for LadybugDB (Rust port of ladybug-adbc-python)"
+readme = "README.md"
+license = "MIT"
+
+[[bin]]
+name = "ladybug-flight-server"
+path = "src/main.rs"
+
+[[bin]]
+name = "ladybug-client"
+path = "src/bin/client.rs"
+
+[[bin]]
+name = "ladybug-healthcheck"
+path = "src/bin/healthcheck.rs"
+
+[[bin]]
+name = "ladybug-bench"
+path = "src/bin/bench.rs"
+
+[dependencies]
+lbug = { version = "0.20", features = ["arrow"] }
+arrow = { version = "55", features = ["prettyprint"] }
+arrow-flight = "55"
+tonic = { version = "0.12", features = ["transport"] }
+tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+futures = "0.3"
+bytes = "1"
+prost = "0.13"
+uuid = { version = "1", features = ["v4"] }
+clap = { version = "4", features = ["derive", "env"] }
+anyhow = "1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_tokio"] }
+tempfile = "3"
+
+[[bench]]
+name = "throughput"
+harness = false
