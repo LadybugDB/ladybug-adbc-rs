@@ -69,6 +69,28 @@ Example (release, server + bench as separate processes, concurrency 8):
 | follows / lives_in   | ~190   | ~1000  |
 | two_hop / same_city  | ~80–130| ~150–260|
 
+## Benchmark (1M rows: ADBC vs JSON)
+
+```bash
+# Same 1M mixed-type rows (UNWIND range(...)) over both paths:
+./target/release/ladybug-bench-million --rows 1000000 --iterations 3
+./target/release/ladybug-bench-million --uri grpc://localhost:50051 --rows 1000000
+```
+
+Measured (release, separate server process, 1M rows × 3 cols):
+
+| leg | secs | rows/s | MiB | MiB/s |
+|---|---|---|---|---|
+| ADBC round trip | 3.23 | ~310k | 25.2 | 7.8 |
+| JSON codec (convert+ser+parse) | 0.69 | ~1.45M | 40.7 | 59 |
+| Arrow IPC codec (enc+dec) | 0.011 | ~87M | 25.2 | ~2200 |
+
+Takeaways: JSON wire payload is **1.6x** the Arrow IPC payload, and row-JSON
+ser/parse is **~60x** the Arrow IPC encode/decode on identical data. Caveat:
+this server re-executes the query per RPC (`GetFlightInfo` + `DoGet`), so the
+ADBC round trip embeds ~2x query cost — the codec rows are the pure
+transport-format comparison.
+
 ## SQL vs Cypher
 
 `adbc_driver_flightsql` is *typically* tied to SQL (`cursor.execute(sql)`,

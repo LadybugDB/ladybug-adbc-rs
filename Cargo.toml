@@ -23,6 +23,10 @@ path = "src/bin/healthcheck.rs"
 name = "ladybug-bench"
 path = "src/bin/bench.rs"
 
+[[bin]]
+name = "ladybug-bench-million"
+path = "src/bin/million_rows.rs"
+
 [dependencies]
 lbug = { version = "0.20", features = ["arrow"] }
 arrow = { version = "55", features = ["prettyprint"] }
@@ -36,6 +40,7 @@ prost = "0.13"
 uuid = { version = "1", features = ["v4"] }
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
+serde_json = "1"
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["async_tokio"] }
