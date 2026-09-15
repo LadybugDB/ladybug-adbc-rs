@@ -22,6 +22,12 @@ COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 COPY benches ./benches
 COPY tests ./tests
+# Build from bundled source — the ladybug prebuilt artifacts only ship
+# lbug.h / lbug.hpp / liblbug.a, so lbug_arrow.cpp's
+# #include "common/arrow/arrow_converter.h" can't be resolved against
+# the prebuilt. The precompiled-bin workflow in LadybugDB/ladybug would
+# need to start bundling common/arrow/*.h to flip this back off.
+ENV LBUG_BUILD_FROM_SOURCE=1
 # Warm dependency build before the final binary (Cargo.lock optional).
 RUN cargo build --release --bin ladybug-flight-server \
     --bin ladybug-client --bin ladybug-healthcheck --bin ladybug-bench
