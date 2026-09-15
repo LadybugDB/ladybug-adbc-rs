@@ -1,6 +1,11 @@
 # syntax=docker/dockerfile:1
 # LadybugDB Arrow Flight / ADBC server (Rust).
-FROM rust:1.85-bookworm AS builder
+# 1.90 to match the transitive deps pulled in by the ladybug-rust 19c48ac4
+# pin (cxx 1.0.202 / time 0.3.55 both require rustc >= 1.88). Track the
+# test job (dtolnay/rust-toolchain@stable) by going one or two stable
+# minors behind latest — keeps the Dockerfile build reproducible while
+# staying close to what CI's cargo test runs against.
+FROM rust:1.90-bookworm AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake pkg-config \
