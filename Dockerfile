@@ -1,11 +1,17 @@
 # syntax=docker/dockerfile:1
 # LadybugDB Arrow Flight / ADBC server (Rust).
-# 1.90 to match the transitive deps pulled in by the ladybug-rust 19c48ac4
-# pin (cxx 1.0.202 / time 0.3.55 both require rustc >= 1.88). Track the
-# test job (dtolnay/rust-toolchain@stable) by going one or two stable
-# minors behind latest — keeps the Dockerfile build reproducible while
-# staying close to what CI's cargo test runs against.
-FROM rust:1.90-bookworm AS builder
+# Trixie (Debian 13) for both stages:
+# - builder: lbug.hpp (from the ladybug prebuilt headers) #include <format>s,
+#   and <format> only landed in libstdc++ in GCC 13. Trixie ships GCC 14,
+#   bookworm is still on GCC 12. The test job hides this because it runs on
+#   ubuntu-latest (GCC 13+).
+# - runtime: keep the same Debian major as the builder so libstdc++ ABI
+#   matches (otherwise the binary would need newer GLIBCXX symbols than
+#   bookworm-slim provides).
+# 1.90 satisfies the rustc >= 1.88 floor set by cxx 1.0.202 / time 0.3.55
+# (pulled in transitively via ladybug-rust 19c48ac4) and tracks one stable
+# behind current.
+FROM rust:1.90-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake pkg-config \
@@ -20,7 +26,7 @@ COPY tests ./tests
 RUN cargo build --release --bin ladybug-flight-server \
     --bin ladybug-client --bin ladybug-healthcheck --bin ladybug-bench
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 
 LABEL org.opencontainers.image.title="ladybug-adbc-rs"
 LABEL org.opencontainers.image.description="Arrow Flight / ADBC columnar server for LadybugDB (Rust)"
