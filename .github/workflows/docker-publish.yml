@@ -20,6 +20,14 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # TEMPORARY: prebuilt core from a main-branch run that includes the
+      # prepared-statement schema API (core #970). The default latest release
+      # (v0.20.4) predates it, so headers/sources would not compile.
+      # TODO: remove once a core release containing #970 is out — the
+      # download script then falls back to that release automatically.
+      LBUG_PRECOMPILED_RUN_ID: "34930255321"
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
