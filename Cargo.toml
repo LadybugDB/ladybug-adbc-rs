@@ -28,11 +28,13 @@ name = "ladybug-bench-million"
 path = "src/bin/million_rows.rs"
 
 [dependencies]
-# TEMPORARY: track ladybug-rust main until the prepared-schema API
-# (bindings #34) ships in a crates.io release; then switch back to
-# `lbug = { version = ">=0.20", features = ["arrow"] }`.
-# (The old feat/prepared-statement-arrow-schema branch was deleted on merge.)
-lbug = { git = "https://github.com/LadybugDB/ladybug-rust", branch = "main", features = ["arrow"] }
+# TEMPORARY: pinned to ladybug-rust 19c48ac4 ("Add
+# PreparedStatement::get_arrow_schema (no execution)"), which is the
+# first revision exposing the prepared-schema API (bindings #34) on top
+# of core #970. Track main / switch back to
+# `lbug = { version = ">=0.20", features = ["arrow"] }` once a crates.io
+# release of ladybug-rust that wraps core #970 is published.
+lbug = { git = "https://github.com/LadybugDB/ladybug-rust", rev = "19c48ac4546c3602c732a9f8648e4b854364d4b3", features = ["arrow"] }
 arrow = { version = "55", features = ["prettyprint"] }
 arrow-flight = "55"
 tonic = { version = "0.12", features = ["transport"] }
