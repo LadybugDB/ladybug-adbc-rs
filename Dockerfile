@@ -18,16 +18,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
+# Fast ladybug linkage (assembled by CI via scripts/fetch-lbug-deps.sh before
+docker build): link the prebuilt static archive, compile the small cxx shims
+against the real headers from the matching core commit. This avoids both
+failure modes — pure prebuilt is missing common/arrow/*.h, and
+LBUG_BUILD_FROM_SOURCE=1 compiles all of ladybug core (hours under QEMU).
+lbug-deps/ layout: include/ (shared) + lib-<TARGETARCH>/liblbug.a.
+(Local builds: run the fetch script first to create lbug-deps/.)
+ARG TARGETARCH=amd64
+COPY lbug-deps /opt/lbug-deps
+ENV LBUG_LIBRARY_DIR=/opt/lbug-deps/lib-${TARGETARCH} \
+    LBUG_INCLUDE_DIR=/opt/lbug-deps/include
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 COPY benches ./benches
 COPY tests ./tests
-# Build from bundled source — the ladybug prebuilt artifacts only ship
-# lbug.h / lbug.hpp / liblbug.a, so lbug_arrow.cpp's
-# #include "common/arrow/arrow_converter.h" can't be resolved against
-# the prebuilt. The precompiled-bin workflow in LadybugDB/ladybug would
-# need to start bundling common/arrow/*.h to flip this back off.
-ENV LBUG_BUILD_FROM_SOURCE=1
 # Warm dependency build before the final binary (Cargo.lock optional).
 RUN cargo build --release --bin ladybug-flight-server \
     --bin ladybug-client --bin ladybug-healthcheck --bin ladybug-bench
