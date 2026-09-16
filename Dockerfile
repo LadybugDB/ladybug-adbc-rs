@@ -19,12 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 # Fast ladybug linkage (assembled by CI via scripts/fetch-lbug-deps.sh before
-docker build): link the prebuilt static archive, compile the small cxx shims
-against the real headers from the matching core commit. This avoids both
-failure modes — pure prebuilt is missing common/arrow/*.h, and
-LBUG_BUILD_FROM_SOURCE=1 compiles all of ladybug core (hours under QEMU).
-lbug-deps/ layout: include/ (shared) + lib-<TARGETARCH>/liblbug.a.
-(Local builds: run the fetch script first to create lbug-deps/.)
+# docker build): link the prebuilt static archive, compile the small cxx shims
+# against the real headers from the matching core commit. This avoids both
+# failure modes — pure prebuilt is missing common/arrow/*.h, and
+# LBUG_BUILD_FROM_SOURCE=1 compiles all of ladybug core (hours under QEMU).
+# lbug-deps/ layout: include/ (shared) + lib-<TARGETARCH>/liblbug.a.
+# (Local builds: run the fetch script first to create lbug-deps/.)
 ARG TARGETARCH=amd64
 COPY lbug-deps /opt/lbug-deps
 # CXXFLAGS=-DLBUG_BUNDLED: ladybug-rust's headers switch on LBUG_BUNDLED
