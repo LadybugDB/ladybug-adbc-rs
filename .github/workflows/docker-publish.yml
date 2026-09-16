@@ -30,6 +30,11 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       LBUG_LIBRARY_DIR: /tmp/lbug-deps/lib-amd64
       LBUG_INCLUDE_DIR: /tmp/lbug-deps/include
+      # Make ladybug-rust's headers take the split-header branch
+      # ("main/lbug.h") like its bundled builds do. Otherwise they take
+      # the amalgamated <lbug.hpp> branch, which redefines the same classes
+      # as common/vector/value_vector.h (both are on the include path).
+      CXXFLAGS: -DLBUG_BUNDLED
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

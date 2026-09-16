@@ -27,8 +27,13 @@ lbug-deps/ layout: include/ (shared) + lib-<TARGETARCH>/liblbug.a.
 (Local builds: run the fetch script first to create lbug-deps/.)
 ARG TARGETARCH=amd64
 COPY lbug-deps /opt/lbug-deps
+# CXXFLAGS=-DLBUG_BUNDLED: ladybug-rust's headers switch on LBUG_BUNDLED
+# (defined by its own bundled builds). Without it they take the amalgamated
+# <lbug.hpp> branch, which redefines classes from common/vector/value_vector.h
+# (both trees are on the include path). cc-rs picks CXXFLAGS up from env.
 ENV LBUG_LIBRARY_DIR=/opt/lbug-deps/lib-${TARGETARCH} \
-    LBUG_INCLUDE_DIR=/opt/lbug-deps/include
+    LBUG_INCLUDE_DIR=/opt/lbug-deps/include \
+    CXXFLAGS=-DLBUG_BUNDLED
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 COPY benches ./benches
