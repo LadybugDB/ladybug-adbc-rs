@@ -25,13 +25,33 @@ WORKDIR /build
 # LBUG_BUILD_FROM_SOURCE=1 compiles all of ladybug core (hours under QEMU).
 # lbug-deps/ layout: include/ (shared) + lib-<TARGETARCH>/liblbug.a.
 # (Local builds: run the fetch script first to create lbug-deps/.)
-ARG TARGETARCH=amd64
 COPY lbug-deps /opt/lbug-deps
+# Pick the static archive by the actual machine arch (uname -m reports the
+# emulated arch under QEMU) and verify its ELF machine with objdump BEFORE
+# the ~45 min release compile: linking an x86_64 liblbug.a into the arm64
+# link fails at the very end with "Relocations in generic ELF (EM: 62)".
+# (Deliberately not via buildx's TARGETARCH: the arm64 leg once resolved it
+# to the amd64 default and burned a full build.)
+RUN set -eu; \
+    echo "uname -m: $(uname -m)"; \
+    ls /opt/lbug-deps; \
+    echo '--- lib-amd64:'; objdump -a /opt/lbug-deps/lib-amd64/liblbug.a | grep -m1 'file format'; \
+    echo '--- lib-arm64:'; objdump -a /opt/lbug-deps/lib-arm64/liblbug.a | grep -m1 'file format'; \
+    case "$(uname -m)" in \
+      aarch64|arm64) SEL=arm64; WANT=littleaarch64;; \
+      x86_64|amd64) SEL=amd64; WANT=x86-64;; \
+      *) echo "unknown arch $(uname -m)"; exit 1;; \
+    esac; \
+    echo "selecting lib-$SEL, expecting $WANT"; \
+    objdump -a "/opt/lbug-deps/lib-$SEL/liblbug.a" | grep -m1 'file format' | grep -q "$WANT" \
+      || { echo 'ARCH MISMATCH between selected liblbug.a and builder'; exit 1; }; \
+    ln -sfn "/opt/lbug-deps/lib-$SEL" /opt/lbug-active; \
+    ls /opt/lbug-active
 # CXXFLAGS=-DLBUG_BUNDLED: ladybug-rust's headers switch on LBUG_BUNDLED
 # (defined by its own bundled builds). Without it they take the amalgamated
 # <lbug.hpp> branch, which redefines classes from common/vector/value_vector.h
 # (both trees are on the include path). cc-rs picks CXXFLAGS up from env.
-ENV LBUG_LIBRARY_DIR=/opt/lbug-deps/lib-${TARGETARCH} \
+ENV LBUG_LIBRARY_DIR=/opt/lbug-active \
     LBUG_INCLUDE_DIR=/opt/lbug-deps/include \
     CXXFLAGS=-DLBUG_BUNDLED
 COPY Cargo.toml Cargo.lock* ./
