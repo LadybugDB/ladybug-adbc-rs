@@ -80,7 +80,13 @@ pub fn build_demo_graph(conn: &lbug::Connection) -> anyhow::Result<()> {
             }
         }
     }
-    for (uid, name, age) in [(1, "Alice", 30), (2, "Bob", 25), (3, "Carol", 35), (4, "Dave", 28), (5, "Eve", 22)] {
+    for (uid, name, age) in [
+        (1, "Alice", 30),
+        (2, "Bob", 25),
+        (3, "Carol", 35),
+        (4, "Dave", 28),
+        (5, "Eve", 22),
+    ] {
         let _ = conn.query(&format!(
             "CREATE (u:User {{id: {uid}, name: '{name}', age: {age}}})"
         ));
@@ -152,7 +158,9 @@ pub fn execute_cypher(
         let schema: SchemaRef = Arc::new(Schema::new(fields));
         let cols: Vec<Arc<dyn arrow::array::Array>> = names
             .iter()
-            .map(|_| Arc::new(StringArray::from(Vec::<&str>::new())) as Arc<dyn arrow::array::Array>)
+            .map(|_| {
+                Arc::new(StringArray::from(Vec::<&str>::new())) as Arc<dyn arrow::array::Array>
+            })
             .collect();
         batches.push(
             RecordBatch::try_new(schema.clone(), cols)
@@ -180,10 +188,9 @@ pub fn prepare_arrow_schema(conn: &lbug::Connection, cypher: &str) -> anyhow::Re
     let ffi_schema = stmt
         .get_arrow_schema()
         .map_err(|e| anyhow::anyhow!("ladybug schema failed: {e}"))?;
-    Ok(Arc::new(
-        Schema::try_from(&ffi_schema)
-            .map_err(|e| anyhow::anyhow!("arrow schema import failed: {e}"))?,
-    ))
+    Ok(Arc::new(Schema::try_from(&ffi_schema).map_err(|e| {
+        anyhow::anyhow!("arrow schema import failed: {e}")
+    })?))
 }
 
 fn status_table() -> (SchemaRef, Vec<RecordBatch>) {
@@ -224,8 +231,7 @@ const SQL_PKG: &str = "arrow.flight.protocol.sql";
 
 /// Keywords that mark a string as a query (mirrors Python `_QUERY_HINT`).
 const QUERY_KEYWORDS: &[&str] = &[
-    "MATCH", "RETURN", "CREATE", "CALL", "UNWIND", "WITH", "SELECT", "SHOW", "DESCRIBE",
-    "EXPLAIN",
+    "MATCH", "RETURN", "CREATE", "CALL", "UNWIND", "WITH", "SELECT", "SHOW", "DESCRIBE", "EXPLAIN",
 ];
 
 fn looks_like_query(s: &str) -> bool {
@@ -410,10 +416,7 @@ pub fn extract_query(cmd: &[u8]) -> String {
     }
     // 3. Bare CommandStatementQuery (no Any wrapper).
     let q = get_str(&decode_fields(cmd), 1);
-    if !q.trim().is_empty()
-        && looks_like_query(&q)
-        && !q.contains("type.googleapis.com")
-    {
+    if !q.trim().is_empty() && looks_like_query(&q) && !q.contains("type.googleapis.com") {
         return q.trim().to_string();
     }
     // 4. Scan every nested string for something query-like.
@@ -465,10 +468,7 @@ pub fn any_command_statement_query(query: &str) -> Vec<u8> {
 }
 
 pub fn any_command_prepared_statement_query(handle: &[u8]) -> Vec<u8> {
-    encode_any(
-        "CommandPreparedStatementQuery",
-        &encode_ld(1, handle),
-    )
+    encode_any("CommandPreparedStatementQuery", &encode_ld(1, handle))
 }
 
 pub fn ticket_statement_query(handle: &[u8]) -> Vec<u8> {
@@ -501,7 +501,10 @@ pub fn parse_create_prepared_statement_request(body: &[u8]) -> String {
 }
 
 /// Build the CreatePreparedStatement result (Any-wrapped, mirrors Python).
-pub fn encode_create_prepared_statement_result(handle: &[u8], dataset_schema_ipc: &[u8]) -> Vec<u8> {
+pub fn encode_create_prepared_statement_result(
+    handle: &[u8],
+    dataset_schema_ipc: &[u8],
+) -> Vec<u8> {
     let mut msg = encode_ld(1, handle);
     msg.extend_from_slice(&encode_ld(2, dataset_schema_ipc));
     encode_any("ActionCreatePreparedStatementResult", &msg)
@@ -556,9 +559,6 @@ mod codec_tests {
             b.extend_from_slice(&encode_ld(2, &inner));
             b
         };
-        assert_eq!(
-            extract_query(&blob),
-            "MATCH (u:User) RETURN u.name"
-        );
+        assert_eq!(extract_query(&blob), "MATCH (u:User) RETURN u.name");
     }
 }

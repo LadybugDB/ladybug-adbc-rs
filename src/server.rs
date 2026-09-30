@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex};
 
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
-use arrow_flight::flight_service_server::{FlightService, FlightServiceServer};
 use arrow_flight::flight_descriptor::DescriptorType;
+use arrow_flight::flight_service_server::{FlightService, FlightServiceServer};
 use arrow_flight::{
     Action, ActionType, Criteria, Empty, FlightData, FlightDescriptor, FlightEndpoint, FlightInfo,
     HandshakeRequest, HandshakeResponse, PollInfo, PutResult, SchemaResult, Ticket,
@@ -162,6 +162,8 @@ impl LadybugFlightServer {
             .map(|e| e.query.clone())
     }
 
+    // Status is tonic's fixed 176-byte error type; boxing it buys nothing.
+    #[allow(clippy::result_large_err)]
     fn flight_info_for(
         &self,
         schema: &SchemaRef,
@@ -186,6 +188,7 @@ impl LadybugFlightServer {
         Ok(info)
     }
 
+    #[allow(clippy::result_large_err)]
     fn schema_ipc(&self, schema: &SchemaRef) -> Result<Vec<u8>, Status> {
         Ok(FlightInfo::new()
             .try_with_schema(schema)
@@ -195,6 +198,7 @@ impl LadybugFlightServer {
     }
 
     /// Descriptor -> (cypher, prepared_handle or None).
+    #[allow(clippy::result_large_err)]
     fn resolve_descriptor_query(
         &self,
         descriptor: &FlightDescriptor,
@@ -273,7 +277,8 @@ impl FlightService for LadybugFlightServer {
             let (schema, batches) = self.execute(cypher).await.map_err(bad_query)?;
             let (rows, _, bytes) = crate::table_stats(&schema, &batches);
             let handle = self.store(cypher.to_string());
-            let descriptor = FlightDescriptor::new_path(vec!["demo".to_string(), label.to_string()]);
+            let descriptor =
+                FlightDescriptor::new_path(vec!["demo".to_string(), label.to_string()]);
             infos.push(Ok(self.flight_info_for(
                 &schema,
                 rows as i64,
@@ -297,8 +302,7 @@ impl FlightService for LadybugFlightServer {
         // with no result columns (e.g. DDL, reported as a status table).
         if let Some(schema) = self.prepare_schema(&cypher).await {
             let handle = handle.unwrap_or_else(|| self.store(cypher));
-            let info =
-                self.flight_info_for(&schema, -1, -1, &handle, Some(descriptor))?;
+            let info = self.flight_info_for(&schema, -1, -1, &handle, Some(descriptor))?;
             return Ok(Response::new(info));
         }
         let (schema, batches) = self.execute(&cypher).await.map_err(bad_query)?;
@@ -338,7 +342,10 @@ impl FlightService for LadybugFlightServer {
         }))
     }
 
-    async fn do_get(&self, request: Request<Ticket>) -> Result<Response<Self::DoGetStream>, Status> {
+    async fn do_get(
+        &self,
+        request: Request<Ticket>,
+    ) -> Result<Response<Self::DoGetStream>, Status> {
         let raw = request.into_inner().ticket.to_vec();
         let handle = decode_ticket_handle(&raw);
         let cypher = match self.lookup(&handle) {
@@ -363,7 +370,10 @@ impl FlightService for LadybugFlightServer {
         Err(Status::unimplemented("do_put not supported"))
     }
 
-    async fn do_action(&self, request: Request<Action>) -> Result<Response<Self::DoActionStream>, Status> {
+    async fn do_action(
+        &self,
+        request: Request<Action>,
+    ) -> Result<Response<Self::DoActionStream>, Status> {
         let action = request.into_inner();
         match action.r#type.as_str() {
             "CreatePreparedStatement" => {
@@ -373,12 +383,7 @@ impl FlightService for LadybugFlightServer {
                 }
                 let schema = match self.prepare_schema(&query).await {
                     Some(s) => s,
-                    None => {
-                        self.execute(&query)
-                            .await
-                            .map_err(bad_query)?
-                            .0
-                    }
+                    None => self.execute(&query).await.map_err(bad_query)?.0,
                 };
                 let dataset_schema = self.schema_ipc(&schema)?;
                 let handle = self.store(query);
@@ -394,7 +399,9 @@ impl FlightService for LadybugFlightServer {
                 let key = String::from_utf8_lossy(&handle).into_owned();
                 self.prepared.lock().expect("prepared lock").remove(&key);
                 let out: Vec<Result<arrow_flight::Result, Status>> =
-                    vec![Ok(arrow_flight::Result { body: vec![].into() })];
+                    vec![Ok(arrow_flight::Result {
+                        body: vec![].into(),
+                    })];
                 Ok(Response::new(futures::stream::iter(out).boxed()))
             }
             "show_tables" | "schema" | "list_queries" => {
@@ -414,7 +421,9 @@ impl FlightService for LadybugFlightServer {
                     }
                 };
                 let out: Vec<Result<arrow_flight::Result, Status>> =
-                    vec![Ok(arrow_flight::Result { body: text.into_bytes().into() })];
+                    vec![Ok(arrow_flight::Result {
+                        body: text.into_bytes().into(),
+                    })];
                 Ok(Response::new(futures::stream::iter(out).boxed()))
             }
             other => Err(Status::unimplemented(format!("unknown action: {other}"))),

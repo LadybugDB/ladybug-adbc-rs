@@ -23,15 +23,13 @@ fn bench_direct(c: &mut Criterion) {
         let conn = lbug::Connection::new(&db).unwrap();
         ladybug_adbc::build_demo_graph(&conn).unwrap();
         let rows: usize = {
-            let (_, batches) =
-                ladybug_adbc::execute_cypher(&conn, cypher, CHUNK_SIZE).unwrap();
+            let (_, batches) = ladybug_adbc::execute_cypher(&conn, cypher, CHUNK_SIZE).unwrap();
             batches.iter().map(|b| b.num_rows()).sum()
         };
         group.throughput(Throughput::Elements(rows as u64));
         group.bench_with_input(BenchmarkId::from_parameter(label), &cypher, |b, cypher| {
             b.iter(|| {
-                let (_, batches) =
-                    ladybug_adbc::execute_cypher(&conn, cypher, CHUNK_SIZE).unwrap();
+                let (_, batches) = ladybug_adbc::execute_cypher(&conn, cypher, CHUNK_SIZE).unwrap();
                 criterion::black_box(batches);
             });
         });
@@ -100,9 +98,13 @@ fn bench_flightsql(c: &mut Criterion) {
 
 async fn direct_rows_async(uri: &str, cypher: &str, flightsql: bool) -> usize {
     let (_, batches) = if flightsql {
-        ladybug_adbc::query_cypher_flightsql(uri, cypher).await.unwrap()
+        ladybug_adbc::query_cypher_flightsql(uri, cypher)
+            .await
+            .unwrap()
     } else {
-        ladybug_adbc::query_cypher_flight(uri, cypher).await.unwrap()
+        ladybug_adbc::query_cypher_flight(uri, cypher)
+            .await
+            .unwrap()
     };
     batches.iter().map(|b| b.num_rows()).sum()
 }

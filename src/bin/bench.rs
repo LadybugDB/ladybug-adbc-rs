@@ -15,7 +15,10 @@ use clap::Parser;
 use ladybug_adbc::{demo_queries, table_stats, LadybugClient};
 
 #[derive(Parser, Debug)]
-#[command(name = "ladybug-bench", about = "LadybugDB Flight throughput benchmark")]
+#[command(
+    name = "ladybug-bench",
+    about = "LadybugDB Flight throughput benchmark"
+)]
 struct Args {
     /// Flight server URI. If absent, an ephemeral in-process server is started.
     #[arg(long)]
