@@ -20,26 +20,9 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      # TEMPORARY: ladybug-rust >= 19c48ac4 needs common/arrow/*.h to compile
-      # its cxx shims, but the prebuilt artifacts ship only
-      # lbug.h / lbug.hpp / liblbug.a. scripts/fetch-lbug-deps.sh assembles
-      # prebuilt lib + matching source headers (core #970) so the build uses
-      # ladybug-rust's "external" path instead of compiling all of core.
-      # Drop this once the precompiled-bin workflow bundles the headers.
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      LBUG_LIBRARY_DIR: /tmp/lbug-deps/lib-amd64
-      LBUG_INCLUDE_DIR: /tmp/lbug-deps/include
-      # Make ladybug-rust's headers take the split-header branch
-      # ("main/lbug.h") like its bundled builds do. Otherwise they take
-      # the amalgamated <lbug.hpp> branch, which redefines the same classes
-      # as common/vector/value_vector.h (both are on the include path).
-      CXXFLAGS: -DLBUG_BUNDLED
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Fetch prebuilt lib + matching core headers
-        run: bash scripts/fetch-lbug-deps.sh 34930255321 553e2c5276ba14eb9d3e004dc77c5413e62925c7 /tmp/lbug-deps amd64
       - run: cargo test
 
   publish:
@@ -50,11 +33,6 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Fetch prebuilt libs + matching core headers for the image build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash scripts/fetch-lbug-deps.sh 34930255321 553e2c5276ba14eb9d3e004dc77c5413e62925c7 lbug-deps amd64 arm64
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
