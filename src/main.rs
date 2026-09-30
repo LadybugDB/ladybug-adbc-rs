@@ -10,7 +10,10 @@ use clap::Parser;
 use ladybug_adbc::LadybugFlightServer;
 
 #[derive(Parser, Debug)]
-#[command(name = "ladybug-flight-server", about = "LadybugDB Arrow Flight / ADBC server")]
+#[command(
+    name = "ladybug-flight-server",
+    about = "LadybugDB Arrow Flight / ADBC server"
+)]
 struct Args {
     /// Bind host (env FLIGHT_HOST).
     #[arg(long, default_value = "127.0.0.1", env = "FLIGHT_HOST")]

@@ -67,6 +67,8 @@ async fn test_flightsql_matches_plain_flight() {
     let (_, via_sql) = ladybug_adbc::query_cypher_flightsql(&uri, cypher)
         .await
         .unwrap();
-    let (_, via_flight) = ladybug_adbc::query_cypher_flight(&uri, cypher).await.unwrap();
+    let (_, via_flight) = ladybug_adbc::query_cypher_flight(&uri, cypher)
+        .await
+        .unwrap();
     assert_eq!(batches_to_string(&via_sql), batches_to_string(&via_flight));
 }

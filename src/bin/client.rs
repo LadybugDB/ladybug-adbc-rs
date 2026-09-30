@@ -45,7 +45,10 @@ async fn main() -> anyhow::Result<()> {
     };
 
     for (label, cypher) in &queries {
-        println!("\n🔌 [{mode}] {label}: {}", cypher.chars().take(100).collect::<String>());
+        println!(
+            "\n🔌 [{mode}] {label}: {}",
+            cypher.chars().take(100).collect::<String>()
+        );
         let (schema, batches) = if args.no_adbc {
             query_cypher_flight(&args.uri, cypher).await?
         } else {
@@ -53,10 +56,7 @@ async fn main() -> anyhow::Result<()> {
         };
         let (rows, cols, bytes) = table_stats(&schema, &batches);
         println!("📊 {rows} rows x {cols} cols, {bytes} bytes");
-        println!(
-            "{}",
-            arrow::util::pretty::pretty_format_batches(&batches)?
-        );
+        println!("{}", arrow::util::pretty::pretty_format_batches(&batches)?);
     }
     Ok(())
 }

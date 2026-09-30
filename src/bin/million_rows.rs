@@ -68,7 +68,9 @@ fn cell_to_json(col: &dyn Array, row: usize) -> anyhow::Result<serde_json::Value
                 .value(row),
         ),
         DataType::Utf8 | DataType::LargeUtf8 => serde_json::Value::from(
-            arrow::array::cast::as_string_array(col).value(row).to_owned(),
+            arrow::array::cast::as_string_array(col)
+                .value(row)
+                .to_owned(),
         ),
         other => anyhow::bail!("unsupported type for JSON leg: {other:?}"),
     })
@@ -79,11 +81,7 @@ fn batches_to_json_rows(batches: &[RecordBatch]) -> anyhow::Result<Vec<serde_jso
     let mut out = Vec::new();
     for b in batches {
         let bschema = b.schema();
-        let names: Vec<&str> = bschema
-            .fields()
-            .iter()
-            .map(|f| f.name().as_str())
-            .collect();
+        let names: Vec<&str> = bschema.fields().iter().map(|f| f.name().as_str()).collect();
         for row in 0..b.num_rows() {
             let mut obj = serde_json::Map::with_capacity(names.len());
             for (c, name) in names.iter().enumerate() {
@@ -202,7 +200,10 @@ async fn main() -> anyhow::Result<()> {
         let parsed_rows = parsed.as_array().map(|a| a.len()).unwrap_or(0);
         assert_eq!(parsed_rows, n, "JSON round trip lost rows");
         let total = convert_dt + ser_dt + parse_dt;
-        if best.map(|(b, _, _, _, _): (f64, f64, f64, f64, usize)| total < b).unwrap_or(true) {
+        if best
+            .map(|(b, _, _, _, _): (f64, f64, f64, f64, usize)| total < b)
+            .unwrap_or(true)
+        {
             best = Some((total, convert_dt, ser_dt, parse_dt, json_bytes));
         }
     }
@@ -229,7 +230,10 @@ async fn main() -> anyhow::Result<()> {
 
     let json_total = convert_dt + ser_dt + parse_dt;
 
-    println!("\n{:<12} {:>10} {:>12} {:>12} {:>12}", "", "secs", "rows/s", "MiB", "MiB/s");
+    println!(
+        "\n{:<12} {:>10} {:>12} {:>12} {:>12}",
+        "", "secs", "rows/s", "MiB", "MiB/s"
+    );
     println!(
         "{:<12} {:>10.3} {:>12.0} {:>12.1} {:>12.1}",
         "ADBC",
