@@ -22,7 +22,7 @@
 #   * libssl-dev    — libnetworkit.so pulls in libcurl/libssl transitively.
 #   * pkg-config    — icebug-rust's build.rs probes Arrow via pkg-config.
 # 1.90 satisfies the rustc >= 1.88 floor set by cxx 1.0.202 / time 0.3.55
-# (pulled in transitively via lbug 0.21.1) and tracks one stable
+# (pulled in transitively via lbug 0.21.2) and tracks one stable
 # behind current.
 FROM rust:1.90-trixie AS builder
 
