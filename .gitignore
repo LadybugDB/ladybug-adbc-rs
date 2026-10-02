@@ -1,3 +1,7 @@
 /target/
 Cargo.lock
 *.log
+# Bundled NetworKit prebuilt (downloaded by scripts/download-icebug.sh).
+/icebug/
+# Bundled shared liblbug (downloaded by scripts/download-liblbug.sh).
+/liblbug/

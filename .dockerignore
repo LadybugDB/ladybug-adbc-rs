@@ -1,1 +1,6 @@
 target/
+# Don't ship the bundled prebuilts into the build context — the
+# Dockerfile downloads them itself (the version may have advanced
+# since the cache was populated).
+icebug/
+liblbug/
