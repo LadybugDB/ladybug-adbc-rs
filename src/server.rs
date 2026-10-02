@@ -102,15 +102,45 @@ impl LadybugFlightServer {
         } else {
             lbug::Database::new(db_path, lbug::SystemConfig::default())?
         };
-        if preload_demo {
+        {
             let conn = lbug::Connection::new(&db)?;
-            crate::build_demo_graph(&conn)?;
+            // Best-effort: make the icebug-backed algo extension
+            // (GDS_PAGE_RANK, PROJECT_GRAPH, …) available to Cypher.
+            // ladybug tracks loaded extensions per Database
+            // (`ExtensionManager` lives on the `Database`), and this
+            // server holds ONE Database for its lifetime — so loading
+            // once here makes GDS_* available to every Connection
+            // minted from it (i.e. every RPC). Missing bundle / offline
+            // just means those functions are unavailable; everything
+            // else keeps working.
+            Self::ensure_algo_extension(&conn);
+            if preload_demo {
+                crate::build_demo_graph(&conn)?;
+            }
         }
         Ok(Self {
             db: Arc::new(db),
             prepared: Arc::new(Mutex::new(PreparedCache::new())),
             location,
         })
+    }
+
+    /// Install the algo extension from the official repo
+    /// (`https://extension.ladybugdb.com`) when missing, then load it on
+    /// this Database. Returns true when `GDS_*` is callable from Cypher.
+    /// Best-effort: returns false (never errors) when the download fails
+    /// (e.g. offline) so server startup never breaks.
+    fn ensure_algo_extension(conn: &lbug::Connection) -> bool {
+        // Already loaded (or installed on disk from a previous run)?
+        if conn.query("LOAD algo").is_ok() {
+            return true;
+        }
+        // Not installed yet: fetch it, then load. A failed INSTALL
+        // (offline) just means GDS_* stays unavailable.
+        if conn.query("INSTALL algo").is_ok() {
+            return conn.query("LOAD algo").is_ok();
+        }
+        false
     }
 
     /// Blocking Cypher execution on the rayon-free blocking pool.

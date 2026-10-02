@@ -7,6 +7,14 @@ description = "Arrow Flight / ADBC columnar interface for LadybugDB (Rust port o
 readme = "README.md"
 license = "MIT"
 
+[features]
+# Optional in-process analytics via icebug (NetworKit) — the same
+# PageRank/Leiden algorithms the algo extension exposes as GDS_* via
+# Cypher. Linux only: pulls in libarrow (C++), libomp (OpenMP), and
+# libnetworkit (NetworkIt) at build time. See scripts/download-icebug.sh.
+default = ["icebug-analytics"]
+icebug-analytics = ["dep:icebug"]
+
 [[bin]]
 name = "ladybug-flight-server"
 path = "src/main.rs"
@@ -31,6 +39,12 @@ path = "src/bin/million_rows.rs"
 lbug = { version = "0.21.1", features = ["arrow"] }
 arrow = { version = "55", features = ["prettyprint"] }
 arrow-flight = "55"
+# icebug 13.2.0 speaks arrow 56 (`arrow-array`/`arrow-buffer` 56.x) —
+# lbug hands us batches built with its own `arrow` 55, so the icebug
+# bridge needs the 56.x crate as a separate alias to keep both in the
+# same build without an upcast collision.
+arrow56 = { package = "arrow", version = "56", default-features = false, features = ["ffi"] }
+icebug = { version = "=13.2.0", optional = true }
 tonic = { version = "0.12", features = ["transport"] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = { version = "0.1", features = ["net"] }

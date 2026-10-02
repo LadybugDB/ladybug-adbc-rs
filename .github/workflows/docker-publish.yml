@@ -6,6 +6,11 @@
 #   ghcr.io/ladybugdb/ladybug-adbc-rs:<version>
 #   ghcr.io/ladybugdb/ladybug-adbc-rs:<major>.<minor>
 #   ghcr.io/ladybugdb/ladybug-adbc-rs:latest   (non-prereleases only)
+#
+# Linux only: the icebug crate pulls in libarrow (C++) + libgomp (the
+# prebuilt libnetworkit.so was linked against GCC's libgomp, not LLVM's
+# libomp) + the libnetworkit.so prebuilt (scripts/download-icebug.sh).
+# macOS / Windows builds are not part of this image.
 name: docker-publish
 
 on:
@@ -22,7 +27,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install system dependencies (Linux)
+        timeout-minutes: 25
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config \
+            libssl-dev \
+            libarrow-dev \
+            libgomp-dev
+
       - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Download shared liblbug
+        run: bash scripts/download-liblbug.sh
+
+      - name: Download icebug prebuilt
+        run: bash scripts/download-icebug.sh
+
       - run: cargo test
 
   publish:

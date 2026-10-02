@@ -1,0 +1,56 @@
+# icebug (NetworKit) Rust crate's build script links libnetworkit from
+# ./icebug (see scripts/download-icebug.sh). The default ./vendor path
+# only applies when the crate is built standalone; pointing at the
+# project's bundled prebuilt keeps the in-tree layout.
+#
+# Use the prebuilt SHARED liblbug from ./liblbug (see
+# scripts/download-liblbug.sh). Shared (not static) is required: the
+# dlopen'd algo extension resolves ladybug symbols
+# (e.g. lbug::function::TableFuncBindData) from the host process at
+# LOAD EXTENSION time. With a static liblbug.a, dead-code stripping
+# drops unreferenced symbols and the extension fails to load with
+# "undefined symbol: _ZTIN4lbug8function17TableFuncBindDataE".
+#
+# Mirrors ../bugscope/.cargo/config.toml — Linux only: macOS / Windows
+# rpaths are out of scope for this crate.
+[env]
+LBUG_LIBRARY_DIR = { value = "liblbug", relative = true }
+LBUG_INCLUDE_DIR = { value = "liblbug", relative = true }
+LBUG_SHARED = "1"
+ICEBUG_DIR = { value = "icebug", relative = true }
+
+# Embed rpath so the test binary finds the bundled shared libs at runtime:
+# - cargo dev/test binaries resolve ../../../ entries
+#   (target/{debug,release}/deps/ -> repo root)
+# - the docker image stages ./icebug and ./liblbug next to the binary
+# RPATH (not RUNPATH) so transitive deps like libarrow (needed by
+# libnetworkit.so) also resolve from these dirs.
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../../liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../../icebug/lib",
+  "-C", "link-arg=-Wl,--disable-new-dtags",
+]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = [
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../icebug/lib",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../../liblbug",
+  "-C", "link-arg=-Wl,-rpath,$ORIGIN/../../../../icebug/lib",
+  "-C", "link-arg=-Wl,--disable-new-dtags",
+]
