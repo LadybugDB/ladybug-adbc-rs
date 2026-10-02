@@ -36,7 +36,7 @@ name = "ladybug-bench-million"
 path = "src/bin/million_rows.rs"
 
 [dependencies]
-lbug = { version = "0.21.1", features = ["arrow"] }
+lbug = { version = "0.21.2", features = ["arrow"] }
 arrow = { version = "55", features = ["prettyprint"] }
 arrow-flight = "55"
 # icebug 13.2.0 speaks arrow 56 (`arrow-array`/`arrow-buffer` 56.x) —
