@@ -11,26 +11,34 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned (not ubuntu-latest): the Apache Arrow apt source below is
+    # per-distro (noble .deb here). Mirrors bugscope pinning ubuntu-22.04
+    # with the jammy .deb.
+    runs-on: ubuntu-24.04
     # Linux only: the icebug Rust crate requires libarrow + libgomp and
     # the bundled libnetworkit.so prebuilt (see scripts/download-icebug.sh).
     # The icebug prebuilt is linked against GCC's libgomp
     # (`NEEDED libgomp.so.1`); LLVM's libomp is ABI-incompatible, so we
-    # must match. Also downloads the SHARED liblbug — the dlopen'd algo
-    # extension resolves ladybug symbols from the host process, which a
-    # static lib would have stripped.
+    # must match (`<omp.h>` ships with GCC itself — no libgomp-dev
+    # package exists). Also downloads the SHARED liblbug — the dlopen'd
+    # algo extension resolves ladybug symbols from the host process,
+    # which a static lib would have stripped.
     steps:
       - uses: actions/checkout@v4
 
       - name: Install system dependencies (Linux)
         timeout-minutes: 25
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          # Apache Arrow repo (icebug's cxx bridge needs arrow headers;
+          # not in stock Ubuntu). Mirrors bugscope's jammy block.
+          wget --timeout=60 --tries=3 https://apache.jfrog.io/artifactory/arrow/ubuntu/apache-arrow-apt-source-latest-noble.deb
+          sudo apt-get install -y ./apache-arrow-apt-source-latest-noble.deb
+          # Bound mirror stalls: fail fast instead of hanging for hours.
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 -o Acquire::https::Timeout=60 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=60 -o Acquire::https::Timeout=60 install -y --no-install-recommends \
             build-essential cmake pkg-config \
             libssl-dev \
-            libarrow-dev \
-            libgomp-dev
+            libarrow-dev
 
       - uses: dtolnay/rust-toolchain@stable
         with:
