@@ -101,7 +101,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates libstdc++6 libgcc-s1 \
-        libgomp1 libarrow2500 libssl3t64 \
+        libgomp1 libarrow2600 libssl3t64 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -u 10001 appuser \
     && mkdir -p /data \
