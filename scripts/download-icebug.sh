@@ -16,7 +16,7 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 REPOSITORY="${ICEBUG_GITHUB_REPOSITORY:-Ladybug-Memory/icebug}"
 TARGET_DIR="${ICEBUG_TARGET_DIR:-$PROJECT_DIR/icebug}"
-VERSION="${ICEBUG_VERSION:-13.2}"
+VERSION="${ICEBUG_VERSION:-13.5}"
 
 if [ "$(uname -s)" != "Linux" ]; then
   echo "error: this crate only ships Linux icebug prebuilts (got $(uname -s))" >&2
