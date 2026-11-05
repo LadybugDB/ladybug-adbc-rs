@@ -79,6 +79,12 @@ RUN cargo test --release --no-run --test gds_page_rank --test extensions \
     && find /build/target/release/deps -maxdepth 1 -name 'extensions-*' -type f -executable -exec cp {} /build/extensions_smoke_check \; \
     && ls -la /build/gds_page_rank_smoke_check /build/extensions_smoke_check
 
+# `dbc` CLI (Columnar Tech ADBC driver installer). Fetched here because
+# the builder has curl and the slim runtime does not. XDG_BIN_HOME pins
+# the install location explicitly (otherwise $HOME/.local/bin).
+RUN curl -fsSL https://dbc.columnar.tech/install.sh | XDG_BIN_HOME=/usr/local/bin sh \
+    && test -x /usr/local/bin/dbc
+
 FROM debian:trixie-slim AS runtime
 
 LABEL org.opencontainers.image.title="ladybug-adbc-rs"
@@ -124,6 +130,10 @@ COPY --from=builder \
 COPY --from=builder /build/gds_page_rank_smoke_check /usr/local/bin/gds_page_rank_smoke_check
 COPY --from=builder /build/extensions_smoke_check /usr/local/bin/extensions_smoke_check
 
+# `dbc` CLI for managing ADBC drivers (installed dynamically, same
+# philosophy as LadybugDB extensions).
+COPY --from=builder /usr/local/bin/dbc /usr/local/bin/dbc
+
 # Stage the bundled shared liblbug next to the binary so the binary's
 # embedded rpath ($ORIGIN/liblbug) resolves liblbug.so at runtime. The
 # dlopen'd algo extension uses the SAME liblbug (it looks up ladybug
@@ -141,6 +151,12 @@ COPY --from=builder /build/liblbug /usr/local/bin/liblbug
 COPY --from=builder /build/icebug /usr/local/bin/icebug
 
 USER appuser
+
+# ADBC drivers exercised by the `adbc` extension smoke test (and available
+# to containers via `dbc`). Installed as appuser so they land in its HOME
+# and stay readable at runtime.
+RUN dbc install snowflake \
+    && dbc install databricks
 
 # The dlopen'd algo extension (`LOAD algo`) depends on libnetworkit.so,
 # but the server binary does not link it directly (only the test binary
