@@ -70,3 +70,11 @@ jobs:
       - uses: docker/setup-buildx-action@v3
       - name: Build docker image (linux/amd64)
         run: docker buildx build --platform linux/amd64 --load -t ladybug-adbc-rs:dev .
+      # Actually boot the image and run the staged smoke binaries: the
+      # gds suite needs INSTALL algo (network) and the extensions suite
+      # INSTALLs + LOADs all seven dynamically-pulled extensions, so this
+      # catches missing runtime libs (e.g. libpq5) that a build alone hides.
+      - name: Run image smoke checks
+        run: |
+          docker run --rm ladybug-adbc-rs:dev /usr/local/bin/gds_page_rank_smoke_check
+          docker run --rm ladybug-adbc-rs:dev /usr/local/bin/extensions_smoke_check

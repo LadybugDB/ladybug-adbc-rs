@@ -68,16 +68,16 @@ RUN bash scripts/download-icebug.sh
 RUN cargo build --release --bin ladybug-flight-server \
     --bin ladybug-client --bin ladybug-healthcheck --bin ladybug-bench
 
-# Build the gds_page_rank integration test so the runtime image can run
-# it as a smoke check (`docker run --rm --entrypoint ...`). This pulls
-# in the same compiled deps as the bins above, so it's near-free.
-RUN cargo test --release --no-run --test gds_page_rank \
-    # cargo's test depfiles (`gds_page_rank-XXXXXXXX.d`) sit next to the
-    # binary and share the same hash prefix, so COPY globs match both
-    # and only keep one. Stage the executable under a fixed name so the
-    # runtime COPY is unambiguous.
+# Build the integration tests so the runtime image can run them as smoke
+# checks (`docker run --rm <image> /usr/local/bin/<...>_smoke_check`).
+# This pulls in the same compiled deps as the bins above, so it's near-free.
+# cargo's test depfiles (`<name>-XXXXXXXX.d`) sit next to the binary and
+# share the same hash prefix, so COPY globs match both and only keep one.
+# Stage each executable under a fixed name so the runtime COPY is unambiguous.
+RUN cargo test --release --no-run --test gds_page_rank --test extensions \
     && find /build/target/release/deps -maxdepth 1 -name 'gds_page_rank-*' -type f -executable -exec cp {} /build/gds_page_rank_smoke_check \; \
-    && ls -la /build/gds_page_rank_smoke_check
+    && find /build/target/release/deps -maxdepth 1 -name 'extensions-*' -type f -executable -exec cp {} /build/extensions_smoke_check \; \
+    && ls -la /build/gds_page_rank_smoke_check /build/extensions_smoke_check
 
 FROM debian:trixie-slim AS runtime
 
@@ -91,6 +91,10 @@ USER root
 # libgomp / libarrow / libssl / ca-certificates must survive in the slim
 # image: libnetworkit.so (and the dlopen'd algo extension) need them at
 # runtime. libstdc++6 / libgcc-s1 keep the lbug C++ bridge happy.
+# libpq5 is the dlopen'd pg_client extension's client library (plus its
+# auto-pulled krb5/ldap/sasl/gnutls chain). Extensions themselves are NOT
+# vendored here: they pull dynamically via `INSTALL <name>` at runtime
+# (see tests/extensions.rs), so the image only carries system-level deps.
 # Apache Arrow isn't in stock Debian either; pull from the Apache repo
 # so the runtime libs match the builder's headers (same Arrow version).
 ARG ARROW_APT_DEB=https://apache.jfrog.io/artifactory/arrow/debian/apache-arrow-apt-source-latest-trixie.deb
@@ -101,7 +105,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates libstdc++6 libgcc-s1 \
-        libgomp1 libarrow2600 libssl3t64 \
+        libgomp1 libarrow2600 libssl3t64 libpq5 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -u 10001 appuser \
     && mkdir -p /data \
@@ -114,11 +118,11 @@ COPY --from=builder \
     /build/target/release/ladybug-bench \
     /usr/local/bin/
 
-# Stage the integration test binary as a smoke check (`docker run --rm
-# --entrypoint /usr/local/bin/gds_page_rank_smoke_check`). Builder
-# already staged it under a fixed name to dodge the cargo .d-vs-binary
-# glob ambiguity.
+# Stage the integration test binaries as smoke checks (`docker run --rm
+# <image> /usr/local/bin/<...>_smoke_check`). Builder already staged them
+# under fixed names to dodge the cargo .d-vs-binary glob ambiguity.
 COPY --from=builder /build/gds_page_rank_smoke_check /usr/local/bin/gds_page_rank_smoke_check
+COPY --from=builder /build/extensions_smoke_check /usr/local/bin/extensions_smoke_check
 
 # Stage the bundled shared liblbug next to the binary so the binary's
 # embedded rpath ($ORIGIN/liblbug) resolves liblbug.so at runtime. The

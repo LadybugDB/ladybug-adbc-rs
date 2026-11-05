@@ -212,7 +212,17 @@ fn gds_page_rank_star() {
 async fn gds_page_rank_via_flight() {
     use ladybug_adbc::serve_ephemeral;
 
-    let (uri, _handle) = serve_ephemeral(":memory:", false).await.unwrap();
+    // External server override (e.g. a docker container):
+    // LADYBUG_URI=grpc://localhost:50051 cargo test --release --test gds_page_rank
+    // Without it, the test spins up an ephemeral in-process server.
+    let (uri, _handle): (String, Option<tokio::task::JoinHandle<()>>) =
+        match std::env::var("LADYBUG_URI").ok().filter(|s| !s.is_empty()) {
+            Some(external) => (external, None),
+            None => {
+                let (uri, handle) = serve_ephemeral(":memory:", false).await.unwrap();
+                (uri, Some(handle))
+            }
+        };
 
     // Probe: does GDS_PAGE_RANK resolve over Flight? A missing algo
     // fails with "not been installed" — an offline skip. Any OTHER
@@ -226,6 +236,10 @@ async fn gds_page_rank_via_flight() {
             let msg = e.to_string().to_lowercase();
             if msg.contains("not been installed")
                 || msg.contains("no such function")
+                // "function gds_page_rank does not exist" = algo not loaded
+                // on the target server (distinct from "graph ... does not
+                // exist", which proves the function DID resolve).
+                || (msg.contains("function") && msg.contains("does not exist"))
                 || msg.contains("failed to download")
                 || msg.contains("network")
                 || msg.contains("connection")
