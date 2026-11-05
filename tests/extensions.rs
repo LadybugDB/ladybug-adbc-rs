@@ -16,6 +16,12 @@
 use lbug::{Connection, Database, SystemConfig};
 
 /// Every extension the image must be able to INSTALL + LOAD.
+///
+/// Note on `adbc`: its drivers (Snowflake, Databricks, …) are managed by
+/// the `dbc` CLI baked into the image (`dbc install snowflake`,
+/// `dbc install databricks` at image build time). This test asserts the
+/// extension itself resolves; driver connections need live credentials
+/// and are out of scope for the smoke check.
 const EXTENSIONS: &[&str] = &[
     "algo",
     "vector",
