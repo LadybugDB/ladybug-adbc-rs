@@ -32,6 +32,20 @@ const EXTENSIONS: &[&str] = &[
     "adbc",
 ];
 
+/// Preload libnetworkit.so so the dlopen'd `algo` extension can find it.
+///
+/// This test binary otherwise never references icebug symbols, so the
+/// linker drops the library (`--as-needed`) and `LOAD algo` fails with
+/// "libnetworkit.so: cannot open shared object file" — even though the
+/// same LOAD works from binaries that do link it (and in the image,
+/// where `LD_LIBRARY_PATH` points at the bundled copy).
+#[cfg(feature = "icebug-analytics")]
+fn preload_networkit() {
+    let _ = icebug::Graph::new(0, false, true).expect("icebug Graph::new");
+}
+#[cfg(not(feature = "icebug-analytics"))]
+fn preload_networkit() {}
+
 fn open_ephemeral() -> (tempfile::TempDir, Database) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("ext_smoke.lbdb");
@@ -60,6 +74,7 @@ fn install(conn: &Connection, ext: &str) -> bool {
 fn extensions_install_load() {
     let (_dir, db) = open_ephemeral();
     let conn = Connection::new(&db).unwrap();
+    preload_networkit();
 
     let mut skipped = Vec::new();
     for ext in EXTENSIONS {
