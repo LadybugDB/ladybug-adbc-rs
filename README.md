@@ -123,6 +123,9 @@ keeps working for schema introspection.
 - `src/bin/healthcheck.rs` — container `HEALTHCHECK` probe.
 - `benches/throughput.rs` — criterion benches (direct / plain / prepared).
 - `tests/test_flight.rs` — ephemeral server, FlightSQL ≡ Flight Arrow tables.
+- `tests/extensions.rs` — `INSTALL` + `LOAD` all seven dynamically-pulled
+  extensions (`algo`, `vector`, `fts`, `duckdb`, `pg_client`, `sqlite`,
+  `adbc`); staged into the image as `extensions_smoke_check`.
 
 ## Docker (GHCR)
 
