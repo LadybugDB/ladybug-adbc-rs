@@ -98,7 +98,10 @@ USER root
 # image: libnetworkit.so (and the dlopen'd algo extension) need them at
 # runtime. libstdc++6 / libgcc-s1 keep the lbug C++ bridge happy.
 # libpq5 is the dlopen'd pg_client extension's client library (plus its
-# auto-pulled krb5/ldap/sasl/gnutls chain). Extensions themselves are NOT
+# auto-pulled krb5/ldap/sasl/gnutls chain). libadbc-driver-manager112 is
+# the ADBC driver manager the dlopen'd adbc extension links against
+# (from the same Arrow repo; ADBC drivers themselves come via `dbc`).
+# Extensions themselves are NOT
 # vendored here: they pull dynamically via `INSTALL <name>` at runtime
 # (see tests/extensions.rs), so the image only carries system-level deps.
 # Apache Arrow isn't in stock Debian either; pull from the Apache repo
@@ -111,7 +114,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates libstdc++6 libgcc-s1 \
-        libgomp1 libarrow2600 libssl3t64 libpq5 \
+        libgomp1 libarrow2600 libssl3t64 libpq5 libadbc-driver-manager112 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -u 10001 appuser \
     && mkdir -p /data \
